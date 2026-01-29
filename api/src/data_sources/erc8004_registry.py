@@ -12,8 +12,7 @@ from enum import Enum
 from typing import Optional
 
 import httpx
-from web3 import AsyncWeb3
-from web3.providers.async_rpc import AsyncHTTPProvider
+from web3 import AsyncWeb3, AsyncHTTPProvider
 
 logger = logging.getLogger(__name__)
 
@@ -23,22 +22,35 @@ class Chain(str, Enum):
     BASE_SEPOLIA = "base-sepolia"
 
 
-# ERC-8004 Identity Registry 공식 배포 주소
+# ERC-8004 Identity Registry 공식 배포 주소 (ChaosChain Reference Implementation)
+# https://github.com/ChaosChain/trustless-agents-erc-ri/blob/main/deployments.json
 REGISTRY_ADDRESSES = {
-    Chain.SEPOLIA: "0xf66e7CBdAE1Cb710fee7732E4e1f173624e137A7",
-    Chain.BASE_SEPOLIA: "0xdc527768082c489e0ee228d24d3cfa290214f387",
+    Chain.SEPOLIA: "0xf66e7CBdAE1Cb710fee7732E4e1f173624e137A7",  # v1.2.0 (Jan 2026)
+    Chain.BASE_SEPOLIA: "0xdc527768082c489e0ee228d24d3cfa290214f387",  # v1.1.0 (Legacy)
+}
+
+# 컨트랙트 배포 블록 (이벤트 조회 시작점)
+DEPLOYMENT_BLOCKS = {
+    Chain.SEPOLIA: 7500000,  # ~2026-01 배포 추정
+    Chain.BASE_SEPOLIA: 20000000,  # ~2026-01 배포 추정
 }
 
 # RPC URLs (public endpoints)
 RPC_URLS = {
     Chain.SEPOLIA: "https://ethereum-sepolia-rpc.publicnode.com",
-    Chain.BASE_SEPOLIA: "https://sepolia.base.org",
+    Chain.BASE_SEPOLIA: "https://base-sepolia-rpc.publicnode.com",  # More reliable than sepolia.base.org
 }
 
 # Chain IDs
 CHAIN_IDS = {
     Chain.SEPOLIA: 11155111,
     Chain.BASE_SEPOLIA: 84532,
+}
+
+# Block explorer URLs
+EXPLORER_URLS = {
+    Chain.SEPOLIA: "https://sepolia.etherscan.io",
+    Chain.BASE_SEPOLIA: "https://sepolia.basescan.org",
 }
 
 # ERC-721 + ERC-8004 ABI (필요한 함수만)
@@ -147,21 +159,78 @@ class ERC8004RegistryClient:
         """캐시에 값 저장"""
         self._cache[key] = (value, datetime.now())
     
-    async def get_total_agents(self) -> int:
-        """전체 에이전트 수 조회"""
-        cache_key = f"{self.chain}:total_supply"
+    async def get_valid_token_ids(self) -> list[int]:
+        """이벤트 로그에서 유효한 토큰 ID 목록 조회
+        
+        RPC의 블록 범위 제한(보통 50,000블록)을 고려하여 청크 단위로 조회합니다.
+        """
+        cache_key = f"{self.chain}:valid_token_ids"
         cached = self._get_cache(cache_key)
         if cached is not None:
             return cached
         
         try:
-            contract = await self._get_contract()
-            total = await contract.functions.totalSupply().call()
-            self._set_cache(cache_key, total)
-            return total
+            w3 = await self._get_web3()
+            
+            # Transfer 이벤트로 민팅된 토큰 ID 찾기
+            transfer_topic = w3.keccak(text='Transfer(address,address,uint256)')
+            zero_address = '0x' + '0' * 64  # 민팅은 0x0에서 전송
+            
+            latest = await w3.eth.block_number
+            deployment_block = DEPLOYMENT_BLOCKS.get(self.chain, 0)
+            
+            # RPC 제한: 보통 50,000 블록 제한이 있음
+            # 청크 단위로 조회 (최대 10개 청크)
+            chunk_size = 45000  # 안전하게 45,000
+            max_chunks = 10
+            
+            token_ids = set()
+            current_block = latest
+            chunks_fetched = 0
+            
+            while current_block > deployment_block and chunks_fetched < max_chunks:
+                from_block = max(deployment_block, current_block - chunk_size)
+                to_block = current_block
+                
+                try:
+                    logs = await w3.eth.get_logs({
+                        'address': w3.to_checksum_address(self.registry_address),
+                        'topics': [transfer_topic, zero_address],  # from = 0x0 (mint)
+                        'fromBlock': from_block,
+                        'toBlock': to_block,
+                    })
+                    
+                    for log in logs:
+                        token_id = int(log['topics'][3].hex(), 16)
+                        token_ids.add(token_id)
+                    
+                    logger.debug(f"[{self.chain}] Blocks {from_block}-{to_block}: {len(logs)} mints")
+                    
+                except Exception as chunk_err:
+                    logger.warning(f"[{self.chain}] Failed to fetch blocks {from_block}-{to_block}: {chunk_err}")
+                
+                current_block = from_block - 1
+                chunks_fetched += 1
+            
+            result = sorted(token_ids, reverse=True)
+            
+            if result:
+                logger.info(f"[{self.chain}] Found {len(result)} agents: {result[:10]}...")
+            else:
+                logger.warning(f"[{self.chain}] No agents found in event logs")
+            
+            self._set_cache(cache_key, result)
+            return result
+            
         except Exception as e:
-            logger.error(f"Failed to get total supply: {e}")
-            raise
+            logger.warning(f"Failed to get token IDs from events: {e}")
+            # 폴백: 빈 리스트 반환
+            return []
+    
+    async def get_total_agents(self) -> int:
+        """전체 에이전트 수 조회"""
+        valid_ids = await self.get_valid_token_ids()
+        return len(valid_ids)
     
     async def get_owner(self, agent_id: int) -> str:
         """에이전트 소유자 주소 조회"""
@@ -274,7 +343,8 @@ class ERC8004RegistryClient:
         newest_first: bool = True,
     ) -> AgentListResponse:
         """에이전트 목록 조회 (페이지네이션)"""
-        total = await self.get_total_agents()
+        valid_ids = await self.get_valid_token_ids()
+        total = len(valid_ids)
         
         if total == 0:
             return AgentListResponse(
@@ -284,20 +354,15 @@ class ERC8004RegistryClient:
                 chain=self.chain.value,
             )
         
-        # agent_id는 1부터 시작
-        if newest_first:
-            # 최신순: total, total-1, ..., 1
-            start_id = total - offset
-            end_id = max(start_id - limit, 0)
-            agent_ids = list(range(start_id, end_id, -1))
-        else:
-            # 오래된 순: 1, 2, ..., total
-            start_id = 1 + offset
-            end_id = min(start_id + limit, total + 1)
-            agent_ids = list(range(start_id, end_id))
+        # 유효한 ID 목록에서 페이지네이션
+        if not newest_first:
+            valid_ids = list(reversed(valid_ids))
+        
+        # offset과 limit 적용
+        paged_ids = valid_ids[offset:offset + limit]
         
         # 병렬로 메타데이터 조회
-        tasks = [self.get_agent_metadata(aid) for aid in agent_ids]
+        tasks = [self.get_agent_metadata(aid) for aid in paged_ids]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
         agents = []

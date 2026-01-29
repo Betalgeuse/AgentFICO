@@ -10,14 +10,19 @@ from .data_sources.erc8004 import ERC8004MockDataSource
 from .data_sources.etherscan import EtherscanClient
 from .data_sources.x402 import X402MockDataSource
 
+# Load .env files (check multiple locations)
 load_dotenv()
+load_dotenv(".env.local", override=True)
+load_dotenv("../contracts/.env", override=True)  # contracts/.env has BASESCAN_API_KEY
 
 
 @lru_cache
 def get_etherscan_client() -> EtherscanClient:
     """Get Etherscan client singleton."""
-    api_key = os.getenv("ETHERSCAN_API_KEY", "")
-    return EtherscanClient(api_key)
+    # V2 API uses same key for all chains (Etherscan, Basescan, etc.)
+    api_key = os.getenv("ETHERSCAN_API_KEY") or os.getenv("BASESCAN_API_KEY", "")
+    chain = os.getenv("ETHERSCAN_CHAIN", "ethereum")
+    return EtherscanClient(api_key, chain=chain)
 
 
 @lru_cache

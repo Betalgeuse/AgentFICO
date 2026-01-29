@@ -1,4 +1,4 @@
-# ADR-003: AgentFICO 점수 공식 확정
+# ADR-002: AgentFICO 점수 공식 확정
 
 ## Status
 ✅ APPROVED (2026-01-29)

@@ -35,7 +35,7 @@ class EtherscanClient:
     and calculate success rates for AI agent scoring.
 
     Attributes:
-        BASE_URL: Etherscan API base URL
+        BASE_URL: Etherscan API V2 base URL
         RATE_LIMIT: Maximum calls per second (5 for free tier)
         RATE_WINDOW: Time window for rate limiting in seconds
 
@@ -45,18 +45,29 @@ class EtherscanClient:
         >>> print(f"Success rate: {score['success_rate']:.2f}%")
     """
 
-    BASE_URL = "https://api.etherscan.io/api"
+    BASE_URL = "https://api.etherscan.io/v2/api"  # V2 API
     RATE_LIMIT = 5  # calls per second
     RATE_WINDOW = 1.0  # seconds
+    
+    # Chain IDs for V2 API
+    CHAIN_IDS = {
+        "ethereum": 1,
+        "sepolia": 11155111,
+        "base": 8453,
+        "base-sepolia": 84532,
+    }
 
-    def __init__(self, api_key: str, timeout: float = 30.0):
+    def __init__(self, api_key: str, chain: str = "ethereum", timeout: float = 30.0):
         """Initialize Etherscan client.
 
         Args:
             api_key: Etherscan API key
+            chain: Chain name (ethereum, sepolia, base, base-sepolia)
             timeout: Request timeout in seconds
         """
         self.api_key = api_key
+        self.chain = chain
+        self.chain_id = self.CHAIN_IDS.get(chain, 1)
         self.timeout = timeout
         self._last_call_times: List[float] = []
         self._lock = asyncio.Lock()
@@ -110,6 +121,7 @@ class EtherscanClient:
         await self._rate_limit()
 
         params["apikey"] = self.api_key
+        params["chainid"] = self.chain_id  # V2 API requires chainid
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(self.BASE_URL, params=params)
@@ -124,8 +136,12 @@ class EtherscanClient:
             if "rate limit" in message.lower() or "rate limit" in str(result).lower():
                 raise EtherscanRateLimitError(f"Rate limit exceeded: {message}")
 
-            # "No transactions found" is not an error
-            if "No transactions found" in str(result):
+            # "No transactions found" is not an error - return empty list
+            if "No transactions found" in str(result) or result == []:
+                return {"result": []}
+            
+            # Empty result with NOTOK is also "no transactions"
+            if message == "NOTOK" and result == "No transactions found":
                 return {"result": []}
 
             raise EtherscanAPIError(f"API error: {message} - {result}")
