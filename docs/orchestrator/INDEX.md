@@ -46,7 +46,7 @@
 |:---|:---|:---|:---:|:---|
 | [M3](milestones/M3.md) | Real Agent Scoring | ✅ 완료 | 100% | 7개 에이전트 점수 검증 (avg 721) |
 | [M4](milestones/M4.md) | Testnet Deploy | 📋 계획 | 67% | Base Sepolia 배포 (M3 검증 완료) |
-| [M5](milestones/M5.md) | Feedback API | 📋 계획 | 0% | AgentFICO-Agents 피드백 수신 |
+| [M5](milestones/M5.md) | Anti-Gaming | 📋 계획 | 0% | 게이밍 방지 점수 시스템 |
 
 ### Phase 3: 사용자 노출 + GTM
 
@@ -122,6 +122,7 @@ AgentFICO                      AgentFICO-Agents
 |:---|:---|:---|
 | [ADR-001](../adr/ADR-001-backend-first.md) | 백엔드 우선 개발 | ✅ Approved |
 | [ADR-002](../adr/ADR-002-score-formula.md) | 점수 공식 확정 | ✅ Approved |
+| [ADR-003](../adr/ADR-003-anti-gaming-over-zk.md) | Anti-Gaming > ZK | ✅ Approved |
 
 ---
 
