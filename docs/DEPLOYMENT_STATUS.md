@@ -51,7 +51,7 @@
 |------|------|-----|
 | **Webhook Service** | ✅ 배포됨 | `https://agentfico-webhook.onrender.com` |
 | **Bot Token** | ✅ 설정됨 | Render 환경변수 |
-| **Chat ID** | ✅ 설정됨 | `<your-telegram-chat-id>` |
+| **Chat ID** | ✅ 설정됨 | Render 환경변수 |
 | **Health Check** | ✅ 정상 | `/health` |
 
 **엔드포인트:**
