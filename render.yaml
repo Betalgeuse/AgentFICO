@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: agentfico-api
+    runtime: python
+    rootDir: api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: BASE_SEPOLIA_RPC
+        value: https://sepolia.base.org
+      - key: AGENTFICO_CONTRACT
+        value: 0xdF7699A597662330E553C0f48CEb16ace8b339C6
+    autoDeploy: true
+    healthCheckPath: /health
