@@ -120,7 +120,9 @@ Thumbs.db
 # ============================================
 # Factory / Claude Code
 # ============================================
-.factory/
+# .factory/droids/ 는 프로젝트에 포함 (droid 설정 공유)
+.factory/artifacts/
+.factory/cache/
 .factoryrc
 factory-config.json
 .claude/
