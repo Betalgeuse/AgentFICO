@@ -1,0 +1,33 @@
+{
+  "projectId": "prj_agentfico",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "env": {
+    "VITE_API_URL": "@vite_api_url"
+  },
+  "envs": {
+    "production": {
+      "VITE_API_URL": "https://api.agentfico.luerre.ai"
+    },
+    "preview": {
+      "VITE_API_URL": "http://localhost:8000"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.luerre.ai/:path*"
+    }
+  ]
+}
