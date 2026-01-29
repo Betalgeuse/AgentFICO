@@ -1,0 +1,218 @@
+# ============================================
+# AgentFICO .gitignore
+# ============================================
+
+# ============================================
+# Environment variables (CRITICAL)
+# ============================================
+.env
+.env.*
+!.env.example
+
+# ============================================
+# IDE
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ============================================
+# Node
+# ============================================
+node_modules/
+npm-debug.log
+yarn-error.log
+.npm
+package-lock.json
+yarn.lock
+
+# ============================================
+# Hardhat / Foundry
+# ============================================
+artifacts/
+cache/
+typechain/
+typechain-types/
+.hardhat-cache/
+out/
+broadcast/
+
+# ============================================
+# Terraform (CRITICAL - IaC)
+# ============================================
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# ============================================
+# Testing
+# ============================================
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+.nyc_output/
+
+# ============================================
+# Database
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+*.psql
+
+# ============================================
+# Logs
+# ============================================
+*.log
+logs/
+
+# ============================================
+# OS
+# ============================================
+Thumbs.db
+.DS_Store
+*.DS_Store
+
+# ============================================
+# Factory / Claude Code
+# ============================================
+.factory/
+.factoryrc
+factory-config.json
+.claude/
+
+# ============================================
+# Private keys & secrets (CRITICAL)
+# ============================================
+private_keys/
+secrets/
+*.key
+*.pem
+*.p12
+*.keystore
+*.jks
+
+# ============================================
+# Blockchain / Web3 secrets (CRITICAL)
+# ============================================
+*.mnemonic
+*seed*phrase*
+*seedphrase*
+wallet.json
+keystore/
+.secret
+hardhat.config.local.ts
+hardhat.config.local.js
+foundry.toml.local
+
+# ============================================
+# API keys & credentials (CRITICAL)
+# ============================================
+.credentials
+credentials.json
+api_keys.json
+*_credentials.json
+*.credentials
+secrets.json
+*-secret.json
+
+# ============================================
+# AWS
+# ============================================
+.aws/
+aws-exports.js
+samconfig.toml
+!samconfig.toml.example
+
+# ============================================
+# GCP
+# ============================================
+*-service-account.json
+gcloud-*.json
+*.json.enc
+
+# ============================================
+# Build outputs
+# ============================================
+dist/
+build/
+out/
+.next/
+.nuxt/
+
+# ============================================
+# Temporary files
+# ============================================
+*.tmp
+*.temp
+*.bak
+backup/
+temp/
+tmp/
+
+# ============================================
+# Local development
+# ============================================
+local/
+.local/
+
+# ============================================
+# Documentation (local only)
+# ============================================
+docs/
+
+# ============================================
+# Agents folder (separate repo)
+# ============================================
+agents/
+
+# ============================================
+# Keep these files
+# ============================================
+!README.md
+!LICENSE
+!.gitignore
