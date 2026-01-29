@@ -219,3 +219,7 @@ agents/
 !LICENSE
 !.gitignore
 docs/business-context/specs/AGENTFICO_TECH_SPEC.md
+
+# Scripts with example private keys
+contracts/scripts/deploy-local.sh
+scripts/run-e2e-tests.sh
