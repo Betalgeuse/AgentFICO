@@ -4,22 +4,47 @@ import { AgentSearch } from '../components/AgentSearch';
 import { ScoreCard } from '../components/ScoreCard';
 import { SampleAgents } from '../components/SampleAgents';
 import { AgentList } from '../components/AgentList';
+import { RealAgentList } from '../components/RealAgentList';
 import { AlertCircle, Loader2, X } from 'lucide-react';
 import { SAMPLE_8004_AGENTS } from '../data/sampleAgents';
+import type { M3AgentScore, AgentScore } from '../types/score';
 
 export function Dashboard() {
   const [address, setAddress] = useState<string | null>(null);
+  const [selectedM3Agent, setSelectedM3Agent] = useState<M3AgentScore | null>(null);
   const { data: score, isLoading, error } = useScore(address);
 
   const handleSearch = (newAddress: string) => {
     setAddress(newAddress);
+    setSelectedM3Agent(null); // Clear M3 selection when searching
     // Scroll to top when searching
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleM3AgentSelect = (agent: M3AgentScore) => {
+    setSelectedM3Agent(agent);
+    setAddress(null); // Clear address search when selecting M3 agent
+    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleClose = () => {
     setAddress(null);
+    setSelectedM3Agent(null);
   };
+
+  // Convert M3AgentScore to AgentScore for ScoreCard compatibility
+  const m3ToAgentScore = (m3: M3AgentScore): AgentScore => ({
+    agentAddress: m3.address,
+    overall: m3.overall,
+    txSuccess: m3.tx_success,
+    x402Profitability: m3.x402_profitability,
+    erc8004Stability: m3.erc8004_stability,
+    riskLevel: m3.risk_level === 'low' ? 1 : m3.risk_level === 'medium' ? 2 : 3,
+    riskLevelName: m3.tier,
+    confidence: m3.confidence,
+    timestamp: new Date().toISOString(),
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -57,7 +82,7 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Score Card */}
+        {/* Score Card - API Result */}
         {score && !isLoading && (
           <div className="animate-fade-in relative">
             <button
@@ -70,8 +95,31 @@ export function Dashboard() {
           </div>
         )}
 
+        {/* Score Card - M3 Real Agent */}
+        {selectedM3Agent && !score && !isLoading && (
+          <div className="animate-fade-in relative">
+            <button
+              onClick={handleClose}
+              className="absolute -top-2 -right-2 bg-gray-200 hover:bg-gray-300 rounded-full p-1 z-10"
+            >
+              <X className="w-4 h-4 text-gray-600" />
+            </button>
+            <div className="mb-2 text-center">
+              <span className="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                M3 Real Agent Data
+              </span>
+            </div>
+            <ScoreCard score={m3ToAgentScore(selectedM3Agent)} />
+            {selectedM3Agent.metadata.description && (
+              <div className="mt-4 max-w-md mx-auto p-3 bg-gray-50 rounded-lg text-sm text-gray-600 text-center">
+                <strong>Description:</strong> {selectedM3Agent.metadata.description}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Quick Test Agents */}
-        {!score && !isLoading && (
+        {!score && !selectedM3Agent && !isLoading && (
           <SampleAgents onSelect={handleSearch} />
         )}
 
@@ -96,7 +144,10 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Agent Registry List */}
+        {/* Real ERC-8004 Agents from M3 */}
+        <RealAgentList onSelectAgent={handleM3AgentSelect} />
+
+        {/* Sample Agent Registry List */}
         <AgentList onSelectAgent={handleSearch} fallbackAgents={SAMPLE_8004_AGENTS} />
       </main>
 
