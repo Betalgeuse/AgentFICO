@@ -204,8 +204,9 @@ contract AgentFICOScoreV2 is
     function requestScoreUpdate(address agent) external payable nonReentrant {
         if (msg.value < userUpdateFee) revert InsufficientFee();
         
-        // Check cooldown
-        if (block.timestamp < lastUpdate[agent] + USER_UPDATE_COOLDOWN) {
+        // Check cooldown (skip if never updated - lastUpdate is 0)
+        uint256 lastUpdateTime = lastUpdate[agent];
+        if (lastUpdateTime > 0 && block.timestamp < lastUpdateTime + USER_UPDATE_COOLDOWN) {
             revert UpdateCooldownActive();
         }
 
@@ -298,21 +299,26 @@ contract AgentFICOScoreV2 is
 
         Score storage s = scores[agent];
         
-        // Base risk from score (inverse)
+        // Base risk from score (inverse): score 1000 -> risk 0, score 0 -> risk 100
         uint256 baseRisk = 100 - (s.overall / 10);
         
-        // Add protocol risk
+        // Add protocol risk (convert bps to percentage)
         uint256 finalRisk = baseRisk + (protocolRiskBps / 100);
         if (finalRisk > 100) finalRisk = 100;
 
-        // Default probability adjusted by confidence
-        uint256 defaultProb = (finalRisk * (100 - s.confidence / 2)) / 100;
+        // Calculate expected loss with full precision (multiply all before divide)
+        // Formula: expectedLoss = amountUsdc * finalRisk * (200 - confidence) / 20000
+        // This combines: (finalRisk/100) * ((200-confidence)/200) * amountUsdc
+        uint256 expectedLoss = (amountUsdc * finalRisk * (200 - s.confidence)) / 20000;
+
+        // Default probability for display (percentage)
+        uint256 defaultProb = (finalRisk * (200 - s.confidence)) / 200;
         if (defaultProb > 100) defaultProb = 100;
 
         return RiskAssessment({
             riskLevel: finalRisk,
             defaultProbability: defaultProb,
-            expectedLoss: (amountUsdc * defaultProb) / 100
+            expectedLoss: expectedLoss
         });
     }
 
