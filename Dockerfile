@@ -9,5 +9,5 @@ COPY api/src ./src
 
 EXPOSE 10000
 
-# Now WORKDIR is /app/api, so src.main:app will be found
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "${PORT:-10000}"]
+# Use sh -c to expand PORT env var, Render sets PORT dynamically
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-10000}"]
