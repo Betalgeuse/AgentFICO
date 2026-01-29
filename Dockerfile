@@ -9,4 +9,5 @@ COPY api/src ./src
 
 EXPOSE 10000
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "10000"]
+# Use PORT env var (Render sets this), default to 10000
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-10000}"]
