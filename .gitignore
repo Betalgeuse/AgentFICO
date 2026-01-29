@@ -201,9 +201,9 @@ local/
 .local/
 
 # ============================================
-# Documentation (local only)
+# Documentation
 # ============================================
-docs/
+# docs/ - now tracked for milestone and ADR documents
 
 # ============================================
 # Agents folder (separate repo)
