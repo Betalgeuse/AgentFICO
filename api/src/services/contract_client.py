@@ -1,6 +1,6 @@
-"""AgentFICOScore Contract Client
+"""AgentFICOScoreV2 Contract Client
 
-로컬/테스트넷/메인넷 컨트랙트와 상호작용하는 클라이언트
+Base Sepolia 테스트넷/메인넷 컨트랙트와 상호작용하는 클라이언트
 """
 import json
 from pathlib import Path
@@ -10,8 +10,18 @@ from web3 import Web3
 from web3.exceptions import ContractLogicError
 
 
+# Risk level mapping (V2 uses uint8)
+RISK_LEVEL_NAMES = {
+    1: "excellent",
+    2: "good",
+    3: "average",
+    4: "below_average",
+    5: "poor",
+}
+
+
 class ContractClient:
-    """AgentFICOScore 컨트랙트 클라이언트"""
+    """AgentFICOScoreV2 컨트랙트 클라이언트"""
 
     def __init__(
         self,
@@ -36,13 +46,13 @@ class ContractClient:
 
     def _load_abi(self) -> List[Dict[str, Any]]:
         """ABI 파일 로드"""
-        # contracts/out/AgentFICOScore.sol/AgentFICOScore.json 경로
+        # V2 ABI 경로
         abi_path = (
             Path(__file__).parent.parent.parent.parent
             / "contracts"
             / "out"
-            / "AgentFICOScore.sol"
-            / "AgentFICOScore.json"
+            / "AgentFICOScoreV2.sol"
+            / "AgentFICOScoreV2.json"
         )
 
         if abi_path.exists():
@@ -50,11 +60,11 @@ class ContractClient:
                 data = json.load(f)
                 return data.get("abi", [])
 
-        # 대안: ABI 직접 정의 (최소한의 함수)
-        return self._get_fallback_abi()
+        # Fallback: V2 ABI 직접 정의
+        return self._get_v2_abi()
 
-    def _get_fallback_abi(self) -> List[Dict[str, Any]]:
-        """Fallback ABI for core functions"""
+    def _get_v2_abi(self) -> List[Dict[str, Any]]:
+        """V2 ABI for core functions"""
         return [
             {
                 "type": "function",
@@ -70,9 +80,9 @@ class ContractClient:
                             {"name": "x402Profitability", "type": "uint256"},
                             {"name": "erc8004Stability", "type": "uint256"},
                             {"name": "confidence", "type": "uint256"},
-                            {"name": "riskLevel", "type": "string"},
+                            {"name": "riskLevel", "type": "uint8"},
                             {"name": "timestamp", "type": "uint256"},
-                            {"name": "ipfsBreakdown", "type": "string"},
+                            {"name": "antiGamingApplied", "type": "bool"},
                         ],
                     }
                 ],
@@ -94,8 +104,21 @@ class ContractClient:
                     {"name": "x402Score", "type": "uint256"},
                     {"name": "erc8004Score", "type": "uint256"},
                     {"name": "confidence", "type": "uint256"},
-                    {"name": "riskLevel", "type": "string"},
-                    {"name": "ipfsBreakdown", "type": "string"},
+                    {"name": "antiGamingApplied", "type": "bool"},
+                ],
+                "outputs": [],
+                "stateMutability": "nonpayable",
+            },
+            {
+                "type": "function",
+                "name": "batchUpdateScores",
+                "inputs": [
+                    {"name": "agents", "type": "address[]"},
+                    {"name": "txScores", "type": "uint256[]"},
+                    {"name": "x402Scores", "type": "uint256[]"},
+                    {"name": "erc8004Scores", "type": "uint256[]"},
+                    {"name": "confidences", "type": "uint256[]"},
+                    {"name": "antiGamingFlags", "type": "bool[]"},
                 ],
                 "outputs": [],
                 "stateMutability": "nonpayable",
@@ -109,7 +132,7 @@ class ContractClient:
             },
             {
                 "type": "function",
-                "name": "getTotalAgents",
+                "name": "totalAgents",
                 "inputs": [],
                 "outputs": [{"name": "", "type": "uint256"}],
                 "stateMutability": "view",
@@ -120,40 +143,54 @@ class ContractClient:
                 "inputs": [
                     {"name": "agent", "type": "address"},
                     {"name": "amountUsdc", "type": "uint256"},
-                    {"name": "protocolType", "type": "string"},
+                    {"name": "protocolRiskBps", "type": "uint256"},
                 ],
                 "outputs": [
                     {
-                        "name": "assessment",
+                        "name": "",
                         "type": "tuple",
                         "components": [
                             {"name": "riskLevel", "type": "uint256"},
                             {"name": "defaultProbability", "type": "uint256"},
                             {"name": "expectedLoss", "type": "uint256"},
-                            {"name": "positiveFactors", "type": "string[]"},
-                            {"name": "riskFactors", "type": "string[]"},
                         ],
                     }
                 ],
                 "stateMutability": "view",
             },
+            {
+                "type": "function",
+                "name": "VERSION",
+                "inputs": [],
+                "outputs": [{"name": "", "type": "uint256"}],
+                "stateMutability": "view",
+            },
+            {
+                "type": "function",
+                "name": "owner",
+                "inputs": [],
+                "outputs": [{"name": "", "type": "address"}],
+                "stateMutability": "view",
+            },
         ]
 
     async def get_score(self, agent_address: str) -> Dict[str, Any]:
-        """getScore() 호출 - 전체 점수 조회"""
+        """getScore() 호출 - 전체 점수 조회 (V2)"""
         agent = Web3.to_checksum_address(agent_address)
 
         try:
             result = self.contract.functions.getScore(agent).call()
+            risk_level_num = result[5]
             return {
                 "overall": result[0],
                 "txSuccess": result[1],
                 "x402Profitability": result[2],
                 "erc8004Stability": result[3],
                 "confidence": result[4],
-                "riskLevel": result[5],
+                "riskLevel": RISK_LEVEL_NAMES.get(risk_level_num, "unknown"),
+                "riskLevelNum": risk_level_num,
                 "timestamp": result[6],
-                "ipfsBreakdown": result[7],
+                "antiGamingApplied": result[7],
             }
         except ContractLogicError:
             raise ValueError(f"Agent not registered: {agent_address}")
@@ -173,10 +210,9 @@ class ContractClient:
         x402_profitability: int,
         erc8004_stability: int,
         confidence: int,
-        risk_level: str,
-        ipfs_breakdown: str = "",
+        anti_gaming_applied: bool = True,
     ) -> str:
-        """updateScore() 호출 - 점수 업데이트 (owner only)"""
+        """updateScore() 호출 - 점수 업데이트 (owner only, V2)"""
         if not self.private_key or not self.account:
             raise ValueError("Private key required for write operations")
 
@@ -189,13 +225,12 @@ class ContractClient:
             x402_profitability,
             erc8004_stability,
             confidence,
-            risk_level,
-            ipfs_breakdown,
+            anti_gaming_applied,
         ).build_transaction(
             {
                 "from": self.account.address,
                 "nonce": self.w3.eth.get_transaction_count(self.account.address),
-                "gas": 500000,
+                "gas": 300000,
                 "gasPrice": self.w3.eth.gas_price,
             }
         )
@@ -209,38 +244,81 @@ class ContractClient:
 
         return receipt["transactionHash"].hex()
 
+    async def batch_update_scores(
+        self,
+        agents: List[str],
+        tx_scores: List[int],
+        x402_scores: List[int],
+        erc8004_scores: List[int],
+        confidences: List[int],
+        anti_gaming_flags: List[bool],
+    ) -> str:
+        """batchUpdateScores() 호출 - 배치 업데이트 (owner only, V2)"""
+        if not self.private_key or not self.account:
+            raise ValueError("Private key required for write operations")
+
+        agents_checksummed = [Web3.to_checksum_address(a) for a in agents]
+
+        tx = self.contract.functions.batchUpdateScores(
+            agents_checksummed,
+            tx_scores,
+            x402_scores,
+            erc8004_scores,
+            confidences,
+            anti_gaming_flags,
+        ).build_transaction(
+            {
+                "from": self.account.address,
+                "nonce": self.w3.eth.get_transaction_count(self.account.address),
+                "gas": 100000 + 150000 * len(agents),  # Base + per agent
+                "gasPrice": self.w3.eth.gas_price,
+            }
+        )
+
+        signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+
+        return receipt["transactionHash"].hex()
+
     async def is_registered(self, agent_address: str) -> bool:
         """isRegistered() 호출"""
         agent = Web3.to_checksum_address(agent_address)
         return self.contract.functions.isRegistered(agent).call()
 
     async def get_total_agents(self) -> int:
-        """getTotalAgents() 호출"""
-        return self.contract.functions.getTotalAgents().call()
+        """totalAgents() 호출 (V2)"""
+        return self.contract.functions.totalAgents().call()
 
     async def assess_risk(
         self,
         agent_address: str,
         amount_usdc: int,
-        protocol_type: str,
+        protocol_risk_bps: int = 0,
     ) -> Dict[str, Any]:
-        """assessRisk() 호출"""
+        """assessRisk() 호출 (V2 - protocolRiskBps 사용)"""
         agent = Web3.to_checksum_address(agent_address)
 
         try:
             result = self.contract.functions.assessRisk(
-                agent, amount_usdc, protocol_type
+                agent, amount_usdc, protocol_risk_bps
             ).call()
 
             return {
                 "riskLevel": result[0],
                 "defaultProbability": result[1],
                 "expectedLoss": result[2],
-                "positiveFactors": list(result[3]),
-                "riskFactors": list(result[4]),
             }
         except ContractLogicError:
             raise ValueError(f"Agent not registered: {agent_address}")
+
+    async def get_version(self) -> int:
+        """VERSION() 호출"""
+        return self.contract.functions.VERSION().call()
+
+    async def get_owner(self) -> str:
+        """owner() 호출"""
+        return self.contract.functions.owner().call()
 
     def is_connected(self) -> bool:
         """Check if connected to RPC"""

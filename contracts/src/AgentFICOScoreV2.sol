@@ -86,6 +86,12 @@ contract AgentFICOScoreV2 is
         address indexed updatedBy
     );
     
+    event ScoreQueried(
+        address indexed agent,
+        uint256 overall,
+        address indexed queriedBy
+    );
+
     event UserTriggeredUpdate(
         address indexed agent,
         address indexed requester,
@@ -275,15 +281,19 @@ contract AgentFICOScoreV2 is
     // ============ View Functions ============
 
     /// @notice Retrieves the full score for an agent
-    function getScore(address agent) external view returns (Score memory) {
+    function getScore(address agent) external returns (Score memory) {
         if (scores[agent].timestamp == 0) revert AgentNotRegistered();
-        return scores[agent];
+        Score memory s = scores[agent];
+        emit ScoreQueried(agent, s.overall, msg.sender);
+        return s;
     }
 
     /// @notice Retrieves only the overall score (gas optimized)
-    function getScoreOnly(address agent) external view returns (uint256) {
+    function getScoreOnly(address agent) external returns (uint256) {
         if (scores[agent].timestamp == 0) revert AgentNotRegistered();
-        return scores[agent].overall;
+        uint256 overall = scores[agent].overall;
+        emit ScoreQueried(agent, overall, msg.sender);
+        return overall;
     }
 
     /// @notice Assesses risk for a specific amount and protocol type
