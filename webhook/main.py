@@ -9,7 +9,6 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from httpx import AsyncClient
-from web3 import Web3
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
