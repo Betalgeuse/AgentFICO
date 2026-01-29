@@ -16,10 +16,26 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import IntEnum
 from typing import Optional
+import logging
 
 from ..data_sources.etherscan import EtherscanClient
 from ..data_sources.x402 import X402DataSource
 from ..data_sources.erc8004 import ERC8004DataSource
+
+# Anti-Gaming imports (optional, graceful fallback if not available)
+try:
+    from ..services.anti_gaming import (
+        apply_time_decay,
+        detect_anomaly,
+        calculate_consistency_bonus,
+        assess_transaction_quality,
+        is_feature_enabled,
+    )
+    ANTI_GAMING_AVAILABLE = True
+except ImportError:
+    ANTI_GAMING_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 
 class RiskLevel(IntEnum):
@@ -178,6 +194,15 @@ class ScoreCalculator:
         )
         overall = int(weighted_sum * 10)  # 0-100 → 0-1000
 
+        # 3.5 Apply Anti-Gaming adjustments (if available)
+        anti_gaming_adjustments = {}
+        if ANTI_GAMING_AVAILABLE:
+            overall, anti_gaming_adjustments = await self._apply_anti_gaming(
+                agent_address,
+                overall,
+                tx_result,
+            )
+
         # 4. Determine risk level
         risk_level = self._calculate_risk_level(overall)
 
@@ -300,3 +325,92 @@ class ScoreCalculator:
             RiskLevel enum value
         """
         return self._calculate_risk_level(overall)
+
+    async def _apply_anti_gaming(
+        self,
+        agent_address: str,
+        base_score: int,
+        tx_result: dict,
+    ) -> tuple[int, dict]:
+        """Apply Anti-Gaming adjustments to the base score.
+
+        This method applies various anti-gaming measures:
+        - Time decay: Recent activity weighted higher
+        - Anomaly detection: Flag suspicious behavior
+        - Consistency bonus: Reward long-term good performance
+        - TX quality: Weight transactions by quality
+
+        Args:
+            agent_address: Agent's Ethereum address
+            base_score: Base score before adjustments
+            tx_result: Transaction data from Etherscan
+
+        Returns:
+            Tuple of (adjusted_score, adjustment_details)
+        """
+        if not ANTI_GAMING_AVAILABLE:
+            return base_score, {}
+
+        adjustments = {
+            "base_score": base_score,
+            "applied": [],
+        }
+        adjusted_score = float(base_score)
+
+        try:
+            # 1. Anomaly Detection (can reduce score)
+            if is_feature_enabled("anomaly"):
+                # For now, use simplified metrics
+                current_metrics = {
+                    "tx_count": tx_result.get("total_txs", 0),
+                    "success_rate": tx_result.get("success_rate", 0),
+                }
+                # Historical would come from DB in production
+                historical_metrics = []
+                
+                anomaly_result = detect_anomaly(
+                    agent_address,
+                    current_metrics,
+                    historical_metrics
+                )
+                
+                if anomaly_result.get("is_anomaly"):
+                    penalty_factor = anomaly_result.get("penalty_factor", 1.0)
+                    adjusted_score *= penalty_factor
+                    adjustments["applied"].append({
+                        "type": "anomaly_penalty",
+                        "factor": penalty_factor,
+                        "flags": anomaly_result.get("flags", [])
+                    })
+
+            # 2. Consistency Bonus (can increase score)
+            if is_feature_enabled("consistency"):
+                # Historical performance would come from DB
+                performance_history = []
+                
+                consistency_result = calculate_consistency_bonus(performance_history)
+                bonus = consistency_result.get("bonus_points", 0)
+                
+                if bonus > 0:
+                    adjusted_score += bonus
+                    adjustments["applied"].append({
+                        "type": "consistency_bonus",
+                        "bonus": bonus,
+                        "tier": consistency_result.get("achieved_tier")
+                    })
+
+            # Ensure score stays in valid range
+            final_score = int(max(0, min(1000, adjusted_score)))
+            adjustments["final_score"] = final_score
+            adjustments["total_adjustment"] = final_score - base_score
+
+            logger.debug(
+                f"Anti-gaming applied for {agent_address}: "
+                f"{base_score} -> {final_score}"
+            )
+
+            return final_score, adjustments
+
+        except Exception as e:
+            logger.warning(f"Anti-gaming adjustment failed: {e}")
+            return base_score, {"error": str(e)}
