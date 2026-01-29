@@ -3,7 +3,9 @@ import { useScore } from '../hooks/useScore';
 import { AgentSearch } from '../components/AgentSearch';
 import { ScoreCard } from '../components/ScoreCard';
 import { SampleAgents } from '../components/SampleAgents';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AgentList } from '../components/AgentList';
+import { AlertCircle, Loader2, X } from 'lucide-react';
+import { SAMPLE_8004_AGENTS } from '../data/sampleAgents';
 
 export function Dashboard() {
   const [address, setAddress] = useState<string | null>(null);
@@ -11,6 +13,12 @@ export function Dashboard() {
 
   const handleSearch = (newAddress: string) => {
     setAddress(newAddress);
+    // Scroll to top when searching
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClose = () => {
+    setAddress(null);
   };
 
   return (
@@ -18,7 +26,7 @@ export function Dashboard() {
       {/* Header */}
       <header className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-8 shadow-lg">
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold mb-2">🏦 AgentFICO</h1>
+          <h1 className="text-4xl font-bold mb-2">AgentFICO</h1>
           <p className="text-indigo-200 text-lg">AI Agent Credit Scoring System</p>
         </div>
       </header>
@@ -51,16 +59,24 @@ export function Dashboard() {
 
         {/* Score Card */}
         {score && !isLoading && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in relative">
+            <button
+              onClick={handleClose}
+              className="absolute -top-2 -right-2 bg-gray-200 hover:bg-gray-300 rounded-full p-1 z-10"
+            >
+              <X className="w-4 h-4 text-gray-600" />
+            </button>
             <ScoreCard score={score} />
           </div>
         )}
 
-        {/* Sample Agents */}
-        <SampleAgents onSelect={handleSearch} />
+        {/* Quick Test Agents */}
+        {!score && !isLoading && (
+          <SampleAgents onSelect={handleSearch} />
+        )}
 
         {/* Info Section */}
-        <div className="mt-12 max-w-2xl mx-auto text-center text-gray-500 text-sm">
+        <div className="mt-8 max-w-2xl mx-auto text-center text-gray-500 text-sm">
           <p className="mb-2">
             AgentFICO evaluates AI agents based on three key metrics:
           </p>
@@ -79,11 +95,20 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Agent Registry List */}
+        <AgentList agents={SAMPLE_8004_AGENTS} onSelectAgent={handleSearch} />
       </main>
 
       {/* Footer */}
       <footer className="py-6 text-center text-gray-400 text-sm">
         <p>AgentFICO - AI Agent Credit Scoring Infrastructure</p>
+        <p className="mt-1">
+          Data from{' '}
+          <a href="https://www.8004scan.io" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline">
+            8004scan.io
+          </a>
+        </p>
       </footer>
     </div>
   );
