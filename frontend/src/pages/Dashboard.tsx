@@ -97,7 +97,7 @@ export function Dashboard() {
         </div>
 
         {/* Agent Registry List */}
-        <AgentList agents={SAMPLE_8004_AGENTS} onSelectAgent={handleSearch} />
+        <AgentList onSelectAgent={handleSearch} fallbackAgents={SAMPLE_8004_AGENTS} />
       </main>
 
       {/* Footer */}

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ExternalLink, Star, MessageSquare, Zap } from 'lucide-react';
+import { ExternalLink, Star, MessageSquare, Zap, RefreshCw, Loader2 } from 'lucide-react';
 import type { Agent8004 } from '../types/agent';
 import { CHAIN_COLORS } from '../types/agent';
+import { useAgents } from '../hooks/useAgents';
 
 interface AgentListProps {
-  agents: Agent8004[];
   onSelectAgent: (address: string) => void;
+  fallbackAgents?: Agent8004[]; // 오프라인 폴백용
 }
 
 function shortenAddress(address: string): string {
@@ -20,30 +21,86 @@ function getScoreColor(score: number): string {
   return 'text-red-600';
 }
 
-export function AgentList({ agents, onSelectAgent }: AgentListProps) {
+export function AgentList({ onSelectAgent, fallbackAgents = [] }: AgentListProps) {
   const [view, setView] = useState<'grid' | 'table'>('grid');
+  const [chainFilter, setChainFilter] = useState<string>('all');
+  
+  const { data, isLoading, error, refetch, isFetching } = useAgents({
+    chain: chainFilter === 'all' ? undefined : chainFilter,
+    limit: 12,
+  });
+  
+  // API 데이터 또는 폴백 데이터 사용
+  const agents = data?.agents || fallbackAgents;
+  const total = data?.total || fallbackAgents.length;
 
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-800">
-          ERC-8004 Agent Registry
-        </h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setView('grid')}
-            className={`px-3 py-1 rounded ${view === 'grid' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">
+            ERC-8004 Agent Registry
+          </h2>
+          <p className="text-sm text-gray-500">
+            {total} agents {chainFilter !== 'all' ? `on ${chainFilter}` : 'total'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Chain Filter */}
+          <select
+            value={chainFilter}
+            onChange={(e) => setChainFilter(e.target.value)}
+            className="px-3 py-1 border border-gray-300 rounded text-sm"
           >
-            Grid
-          </button>
+            <option value="all">All Chains</option>
+            <option value="sepolia">Sepolia</option>
+            <option value="base-sepolia">Base Sepolia</option>
+          </select>
+          
+          {/* Refresh Button */}
           <button
-            onClick={() => setView('table')}
-            className={`px-3 py-1 rounded ${view === 'table' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="p-2 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+            title="Refresh"
           >
-            Table
+            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
+          
+          {/* View Toggle */}
+          <div className="flex gap-1">
+            <button
+              onClick={() => setView('grid')}
+              className={`px-3 py-1 rounded ${view === 'grid' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setView('table')}
+              className={`px-3 py-1 rounded ${view === 'table' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+            >
+              Table
+            </button>
+          </div>
         </div>
       </div>
+      
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+          <span className="ml-2 text-gray-600">Loading agents from blockchain...</span>
+        </div>
+      )}
+      
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+          <p className="text-yellow-700 text-sm">
+            Failed to load agents from blockchain. Showing cached data.
+          </p>
+        </div>
+      )}
 
       {view === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

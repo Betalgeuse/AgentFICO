@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import contract_router, score_router
+from .routes.agents import router as agents_router
 
 app = FastAPI(
     title="AgentFICO API",
@@ -25,6 +26,7 @@ app.add_middleware(
 # Register routers
 app.include_router(score_router, prefix="/v1")
 app.include_router(contract_router, prefix="/v1")
+app.include_router(agents_router, prefix="/v1")
 
 
 @app.get("/health")
