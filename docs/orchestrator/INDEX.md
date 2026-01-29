@@ -12,8 +12,9 @@
 ### 📋 Milestones
 | ID | Title | Description | Status |
 |:---|:---|:---|:---|
-| [M2](milestones/M2.md) | Score Calculation | 점수 계산 엔진 | 🚀 In Progress |
-| [M1](milestones/M1.md) | Core Infrastructure | 스마트 컨트랙트 배포 | ⏸️ Blocked |
+| [M2](milestones/M2.md) | Score Calculation | 점수 계산 엔진 | ✅ Completed |
+| [M1.5](milestones/M1.5.md) | Local Testing | 로컬 테스트 및 통합 검증 | 📋 Planned |
+| [M1](milestones/M1.md) | Core Infrastructure | 스마트 컨트랙트 배포 | 🟢 Ready (M1.5 완료 후) |
 | [M3](milestones/M3.md) | DeFi Integration | Aave, Uniswap 등 DeFi 프로토콜 연동 | 📋 Planned |
 | [M4](milestones/M4.md) | Frontend Dashboard | 사용자 대시보드 + 모니터링 UI | 📋 Planned |
 
