@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
-from api.src.models.agent_registry import AgentMetadata, VerificationLevel
+from ..models.agent_registry import AgentMetadata, VerificationLevel
 
 
 class ERC8004DataSource(ABC):

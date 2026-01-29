@@ -5,11 +5,11 @@ and the stability score calculation logic.
 """
 import pytest
 
-from api.src.data_sources.erc8004 import (
+from src.data_sources.erc8004 import (
     ERC8004MockDataSource,
     ERC8004OnchainDataSource,
 )
-from api.src.models.agent_registry import AgentMetadata, VerificationLevel
+from src.models.agent_registry import AgentMetadata, VerificationLevel
 
 
 class TestVerificationLevel:
