@@ -11,9 +11,13 @@ from .data_sources.etherscan import EtherscanClient
 from .data_sources.x402 import X402MockDataSource
 
 # Load .env files (check multiple locations)
+import pathlib
+_api_dir = pathlib.Path(__file__).parent.parent
+_root_dir = _api_dir.parent
+
 load_dotenv()
-load_dotenv(".env.local", override=True)
-load_dotenv("../contracts/.env", override=True)  # contracts/.env has BASESCAN_API_KEY
+load_dotenv(_api_dir / ".env.local", override=True)
+load_dotenv(_root_dir / "contracts" / ".env", override=True)  # contracts/.env has BASESCAN_API_KEY
 
 
 @lru_cache
