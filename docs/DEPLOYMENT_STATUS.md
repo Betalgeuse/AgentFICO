@@ -212,7 +212,79 @@ def get_erc8004_source():
 
 ---
 
-### 2.3 🟢 개선 (P2)
+### 2.3 🟡 중요 (P1) - 추가
+
+#### Private Config 프로덕션 배포
+**문제:** Anti-Gaming 계수가 `AgentFICO-Config` private repo에 있어 로컬에서만 작동
+**현재:** 클라우드 배포 시 fallback 기본값 사용 (실제 값과 다름)
+
+**Config 파일 목록:**
+```
+AgentFICO-Config/coefficients/
+├── time_decay.json    # 시간 기반 가중치 감소
+├── anomaly.json       # 이상 탐지 임계값
+├── consistency.json   # 일관성 보너스 설정
+├── tx_quality.json    # 트랜잭션 품질 기준
+└── sybil.json         # 시빌 공격 탐지
+```
+
+**해결 옵션:**
+
+| 방법 | 보안 | 난이도 | 비용 | 추천 |
+|------|------|--------|------|------|
+| **1. 환경변수로 주입** | ⭐⭐⭐ | 쉬움 | 무료 | ⭐ 단순 |
+| **2. Secret Manager (AWS/GCP)** | ⭐⭐⭐⭐⭐ | 중간 | $0.03/secret | ⭐⭐ 기업용 |
+| **3. Private GitHub + Deploy Key** | ⭐⭐⭐⭐ | 중간 | 무료 | ⭐⭐ 현실적 |
+| **4. Encrypted in Repo (SOPS)** | ⭐⭐⭐ | 중간 | 무료 | |
+| **5. 별도 Config Server** | ⭐⭐⭐⭐⭐ | 어려움 | 유료 | 대규모 |
+
+**추천: Option 1 + 3 조합**
+
+```python
+# config_loader.py 수정안
+def load_config(name: str) -> dict:
+    # 1. 환경변수에서 직접 로드 (프로덕션)
+    env_key = f"AG_CONFIG_{name.upper()}"
+    env_value = os.getenv(env_key)
+    if env_value:
+        return json.loads(env_value)
+    
+    # 2. 파일에서 로드 (로컬 개발용)
+    config_path = _get_config_path()
+    if config_path:
+        ...
+    
+    # 3. Fallback (경고 로그)
+    logger.warning(f"Using default config for {name}")
+    return DEFAULT_COEFFICIENTS.get(name, {})
+```
+
+**GitHub Actions 예시:**
+```yaml
+# .github/workflows/deploy.yml
+jobs:
+  deploy:
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Private repo clone with Deploy Key
+      - uses: actions/checkout@v4
+        with:
+          repository: Betalgeuse/AgentFICO-Config
+          ssh-key: ${{ secrets.CONFIG_DEPLOY_KEY }}
+          path: config
+      
+      # 환경변수로 변환
+      - name: Set config env vars
+        run: |
+          echo "AG_CONFIG_TIME_DECAY=$(cat config/coefficients/time_decay.json)" >> $GITHUB_ENV
+          echo "AG_CONFIG_ANOMALY=$(cat config/coefficients/anomaly.json)" >> $GITHUB_ENV
+          # ...
+```
+
+---
+
+### 2.4 🟢 개선 (P2)
 
 #### 데이터베이스 캐싱
 **문제:** 매 요청마다 블록체인 조회 → 느림
